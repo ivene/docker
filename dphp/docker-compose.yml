@@ -1,0 +1,73 @@
+version: '2'
+services:
+
+  # 公共镜像，只配置了国内镜像加速和中国时区配置
+  alpine:
+    build: alpine
+    image: yaoyao/alpine
+
+  mysql:
+    build: mysql
+    image: yaoyao/mysql
+    depends_on:
+      - "alpine"
+    volumes:
+      - "./volumes/mysql:/apps/mysql"
+    ports:
+      - "3306:3306"
+    environment:
+      # 默认的root密码和需要新建的数据库、用户名、密码，若需要重新设置，需要删除volumes/mysql/下面的全部内容，然后重新build
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=123456
+      - MYSQL_USER=developer
+      - MYSQL_PASSWORD=developer
+    restart: always
+
+  redis:
+    build: redis
+    image: yaoyao/redis
+    depends_on:
+      - "alpine"
+    ports:
+      - "10008:6379"
+    restart: always
+    
+  # php5配置
+  # phpfpm:
+  #   build: phpfpm
+  #   image: water/phpfpm
+  #   depends_on:
+  #     - "alpine"
+  #   links:
+  #     - mysql
+  #     - redis
+  #   volumes:
+  #     - "./volumes/apps:/apps"
+  #   restart: always
+
+  # php7配置
+  phpfpm7:
+    build: phpfpm7
+    image: yaoyao/phpfpm7
+    depends_on:
+      - "alpine"
+    links:
+      - mysql
+      - redis
+    volumes:
+      - "./volumes/apps:/apps"
+    restart: always
+
+  # 切换php版本时，请注意修改下面nginx相应的服务别名配置
+  nginx:
+    build: nginx
+    image: yaoyao/nginx
+    depends_on:
+      - "alpine"
+    links:
+      - phpfpm7:phpfpm
+    volumes_from:
+      - phpfpm7
+    ports:
+      - "84:80"
+    restart: always
